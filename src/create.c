@@ -326,6 +326,7 @@ error:
 static corto_int16 cortotool_app (
     const char *projectKind,
     char *projectName,
+    char *dir,
     corto_bool silent,
     corto_bool mute,
     corto_bool nobuild,
@@ -335,18 +336,22 @@ static corto_int16 cortotool_app (
     corto_bool nocoverage,
     corto_string language)
 {
-    corto_id buff, dir;
+    corto_id buff, dir_buffer;
     FILE *file;
     char *name = NULL;
 
     silent |= mute;
 
-    char *id = cortotool_canonicalName(projectName, &name, dir);
+    char *id = cortotool_canonicalName(projectName, &name, dir_buffer);
     if (!id) {
         if (!mute) {
             corto_error("%s", corto_lasterr());
         }
         goto error;
+    }
+
+    if (!dir) {
+        dir = dir_buffer;
     }
 
     if (cortotool_setupProject(projectKind, dir, local, silent)) {
@@ -422,6 +427,7 @@ error:
 
 static corto_int16 cortotool_package(
     char *projectName,
+    char *dir,
     corto_bool silent,
     corto_bool mute,
     corto_bool nobuild,
@@ -432,18 +438,22 @@ static corto_int16 cortotool_package(
     corto_bool nocoverage,
     corto_string language)
 {
-    corto_id cxfile, srcfile, srcdir, dir;
+    corto_id cxfile, srcfile, srcdir, dir_buffer;
     corto_char *name = NULL;
     FILE *file;
 
     silent |= mute;
 
-    char *id = cortotool_canonicalName(projectName, &name, dir);
+    char *id = cortotool_canonicalName(projectName, &name, dir_buffer);
     if (!id) {
         if (!mute) {
             corto_error("%s", corto_lasterr());
         }
         goto error;
+    }
+
+    if (!dir) {
+        dir = dir_buffer;
     }
 
     if (cortotool_setupProject(CORTO_PACKAGE, dir, local, silent)) {
@@ -677,8 +687,9 @@ error:
 int cortomain(int argc, char *argv[]) {
     corto_ll silent, mute, nobuild, notest, local;
     corto_ll apps, packages, nocorto, nodef, nocoverage;
-    corto_ll apps_noname, packages_noname, lang;
+    corto_ll apps_noname, packages_noname, lang, output;
     corto_string language = "c";
+    char *outputdir = NULL;
 
     CORTO_UNUSED(argc);
 
@@ -697,6 +708,7 @@ int cortomain(int argc, char *argv[]) {
         {"--local", &local, NULL},
         {"--nocoverage", &nocoverage, NULL},
         {"--lang", NULL, &lang},
+        {"-o", NULL, &output},
         {CORTO_APPLICATION, NULL, &apps},
         {CORTO_PACKAGE, NULL, &packages},
         {CORTO_APPLICATION, &apps_noname, NULL},
@@ -719,6 +731,10 @@ int cortomain(int argc, char *argv[]) {
         language = corto_ll_get(lang, 0);
     }
 
+    if (output) {
+        outputdir = corto_ll_get(output, 0);
+    }
+
     /* If no arguments are provided, create an application with a random name */
     if (!apps && !packages && !apps_noname && !packages_noname)
     {
@@ -726,6 +742,7 @@ int cortomain(int argc, char *argv[]) {
         if (cortotool_app(
             CORTO_APPLICATION,
             name,
+            outputdir,
             silent != NULL,
             mute != NULL,
             nobuild != NULL,
@@ -746,6 +763,7 @@ int cortomain(int argc, char *argv[]) {
             if (cortotool_app(
                 CORTO_APPLICATION,
                 name,
+                outputdir,
                 silent != NULL,
                 mute != NULL,
                 nobuild != NULL,
@@ -768,6 +786,7 @@ int cortomain(int argc, char *argv[]) {
             if (cortotool_app(
                 CORTO_APPLICATION,
                 name,
+                outputdir,                
                 silent != NULL,
                 mute != NULL,
                 nobuild != NULL,
@@ -788,6 +807,7 @@ int cortomain(int argc, char *argv[]) {
             char *name = corto_iter_next(&iter);
             if (cortotool_package(
                 name,
+                outputdir, 
                 silent != NULL,
                 mute != NULL,
                 nobuild != NULL,
@@ -810,6 +830,7 @@ int cortomain(int argc, char *argv[]) {
             corto_iter_next(&iter);
             if (cortotool_package(
                 name,
+                outputdir, 
                 silent != NULL,
                 mute != NULL,
                 nobuild != NULL,
