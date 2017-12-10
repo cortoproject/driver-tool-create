@@ -183,7 +183,7 @@ static corto_int16 cortotool_createTest(corto_string id, corto_bool isPackage, c
         goto error;
     }
 
-    if (corto_load(
+    if (corto_run(
         "driver/tool/add",
         2,
         (char*[]){"add", "/corto/test", NULL}))
@@ -193,7 +193,7 @@ static corto_int16 cortotool_createTest(corto_string id, corto_bool isPackage, c
     }
 
     if (isPackage && !isLocal) {
-        if (corto_load(
+        if (corto_run(
             "driver/tool/add",
             2,
             (char*[]){"add", id, NULL}))
