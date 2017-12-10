@@ -6,42 +6,41 @@
 #define CORTO_APPLICATION ("application")
 
 #define CORTO_PROMPT CORTO_CYAN "corto: " CORTO_NORMAL
-static char *errfmt = "[ %k - %c: %m ]";
 
 int cortomain(int argc, char *argv[]);
 
 static corto_int16 cortotool_setupProject(
     const char *projectKind,
-    const char *name,
+    const char *dir,
     corto_bool isLocal,
     corto_bool isSilent)
 {
     CORTO_UNUSED(isLocal);
     CORTO_UNUSED(projectKind);
 
-    if (corto_fileTest(name)) {
+    if (corto_file_test(dir)) {
         corto_id id;
-        sprintf(id, "%s/.corto", name);
-        if (corto_fileTest(id)) {
-            corto_error(
-                "corto: a project with the name '%s' already exists!",
-                name);
+        sprintf(id, "%s/.corto", dir);
+        if (corto_file_test(id)) {
+            corto_throw(
+                "corto: a project in location '%s' already exists!",
+                dir);
             goto error;
         }
-    } else if (!corto_mkdir(name)) {
+    } else if (!corto_mkdir(dir)) {
         corto_id id;
-        sprintf(id, "%s/.corto", name);
+        sprintf(id, "%s/.corto", dir);
         if (corto_mkdir(id)) {
-            corto_error(
+            corto_throw(
                 "corto: couldn't create '%s/.corto (check permissions)'",
-                name);
+                dir);
             goto error;
         }
 
     } else {
-        corto_error(
+        corto_throw(
             "corto: couldn't create project directory '%s' (check permissions)",
-            name);
+            dir);
         goto error;
     }
 
@@ -53,9 +52,9 @@ static corto_int16 cortotool_setupProject(
         printf("%s                | /\\\n", CORTO_GREEN);
         printf("%s             /\\ |/\n", CORTO_GREEN);
         printf("%s               \\|%s\n", CORTO_GREEN, CORTO_NORMAL);
-        printf ("\nPlanting a new idea in directory %s'%s'%s\n", 
+        printf ("\nPlanting a new idea in directory %s'%s'%s\n",
             CORTO_CYAN,
-            name,
+            dir,
             CORTO_NORMAL);
     }
 
@@ -66,8 +65,8 @@ error:
 
 static corto_int16 cortotool_createProjectJson(
     const char *projectKind,
-    const char *name,
-    const char *shortName,
+    const char *id,
+    const char *dir,
     corto_bool isLocal,
     corto_bool nocorto,
     corto_bool nocoverage,
@@ -77,19 +76,19 @@ static corto_int16 cortotool_createProjectJson(
     corto_id buff;
     int8_t count = 0;
 
-    sprintf(buff, "%s/project.json", shortName);
+    sprintf(buff, "%s/project.json", dir);
     file = fopen(buff, "w");
     if(!file) {
-        corto_error("couldn't create %s/rakefile (check permissions)", buff);
+        corto_throw("couldn't create %s/project.json (check permissions)", buff);
         goto error;
     }
 
-    fprintf(file, 
+    fprintf(file,
         "{\n"\
         "    \"id\": \"%s\",\n"\
         "    \"type\": \"%s\",\n"\
         "    \"value\": {",
-        name,
+        id,
         !strcmp(projectKind, CORTO_PACKAGE) ? "package" : "application");
 
     fprintf(file,  "\n        \"description\": \"Making the world a better place\"");
@@ -98,7 +97,7 @@ static corto_int16 cortotool_createProjectJson(
     fprintf(file, ",\n        \"language\": \"%s\"", language);
 
     if (isLocal) {
-        fprintf(file, ",\n        \"local\": true");
+        fprintf(file, ",\n        \"public\": false");
         count ++;
     }
     if (nocorto) {
@@ -116,15 +115,15 @@ error:
     return -1;
 }
 
-static corto_int16 cortotool_createTest(corto_string name, corto_bool isPackage, corto_bool isLocal, corto_string language) {
+static corto_int16 cortotool_createTest(corto_string id, corto_bool isPackage, corto_bool isLocal, corto_string language) {
     FILE *file;
 
     if (corto_mkdir("test")) {
-        corto_error("couldn't create test directory for '%s' (check permissions)", name);
+        corto_throw("couldn't create test directory for '%s' (check permissions)", id);
         goto error;
     }
     if (corto_mkdir("test/src")) {
-        corto_error("couldn't create test/src directory for '%s' (check permissions)", name);
+        corto_throw("couldn't create test/src directory for '%s' (check permissions)", id);
         goto error;
     }
 
@@ -143,7 +142,7 @@ static corto_int16 cortotool_createTest(corto_string name, corto_bool isPackage,
             language,
             NULL}
     )) {
-        corto_error("couldn't create test skeleton (check permissions)");
+        corto_throw("couldn't create test skeleton (check permissions)");
         goto error;
     }
 
@@ -157,11 +156,11 @@ static corto_int16 cortotool_createTest(corto_string name, corto_bool isPackage,
     if (file) {
         fprintf(file, "#include <include/test.h>\n");
         fprintf(file, "\n");
-        fprintf(file, "int testMain(int argc, char *argv[]) {\n");
+        fprintf(file, "int cortomain(int argc, char *argv[]) {\n");
         fprintf(file, "    int result = 0;\n");
-        fprintf(file, "    test_Runner runner = test_RunnerCreate(\"%s\", argv[0], (argc > 1) ? argv[1] : NULL);\n", name);
+        fprintf(file, "    test_Runner runner = test_RunnerCreate(\"%s\", argv[0], (argc > 1) ? argv[1] : NULL);\n", id);
         fprintf(file, "    if (!runner) return -1;\n");
-        fprintf(file, "    if (corto_ll_size(runner->failures)) {\n");
+        fprintf(file, "    if (corto_ll_count(runner->failures)) {\n");
         fprintf(file, "        result = -1;\n");
         fprintf(file, "    }\n");
         fprintf(file, "    corto_delete(runner);\n");
@@ -169,47 +168,51 @@ static corto_int16 cortotool_createTest(corto_string name, corto_bool isPackage,
         fprintf(file, "}\n");
         fclose(file);
     } else {
-        corto_error("couldn't create 'test/%s' (check permissions)", filename);
+        corto_throw("couldn't create 'test/%s' (check permissions)", filename);
         goto error;
     }
 
-    file = fopen("test.cx", "w");
+    file = fopen("model.cx", "w");
     if (file) {
         fprintf(file, "in package test\n\n");
         fprintf(file, "test/Suite MySuite:/\n");
         fprintf(file, "    void testSomething()\n\n");
         fclose(file);
     } else {
-        corto_error("couldn't create 'test/test.cx' (check permissions)");
+        corto_throw("couldn't create 'test/model.cx' (check permissions)");
         goto error;
     }
 
     if (corto_load(
         "driver/tool/add",
-        4,
-        (char*[]){"add", "/corto/test", "--silent", "--nobuild", NULL}
-    )) {
+        2,
+        (char*[]){"add", "/corto/test", NULL}))
+    {
+        corto_throw("failed to add corto/test package");
         goto error;
     }
 
     if (isPackage && !isLocal) {
         if (corto_load(
             "driver/tool/add",
-            3,
-            (char*[]){"add", name, "--silent", "--nobuild", NULL}
-        )) {
+            2,
+            (char*[]){"add", id, NULL}))
+        {
+            corto_throw("failed to add '%s' package", id);
             goto error;
         }
     }
 
     /* Timestamps of the files are likely too close to trigger a build, so explicitly
      * do a rebuild of the test project */
-    if (corto_load("driver/tool/rebuild", 2, (char*[]){"rebuild", "--silent", NULL})) {
-        goto error;
-    }
+     int8_t ret;
+     int sig;
+     if ((sig = corto_proc_cmd("bake rebuild --error", &ret) || ret)) {
+         corto_throw("failed to rebuild test");
+     }
 
     if (corto_chdir("..")) {
-        corto_error("failed to change directory to parent");
+        corto_throw("failed to change directory to parent");
         goto error;
     }
 
@@ -273,60 +276,52 @@ static char* cortotool_randomName(void) {
     return strdup(buffer);
 }
 
-static char* cortotool_fmtName(
-    corto_id buffer,
-    corto_id parentName,
-    char *projectName,
-    char **name_out)
+static char* cortotool_canonicalName(
+    char *id,
+    char **name,
+    corto_id dir)
 {
-    strcpy(buffer, projectName);
-    char *include = buffer;
+    char *id_noslash = id;
 
-    /* Ignore initial colons and slashes */
-    if (include[0] == ':') {
-        if (include[1] == ':') {
-            include += 2;
-        } else {
-            corto_seterr("invalid package name");
+    /* Skip initial slash */
+    if (id_noslash[0] == '/') {
+        id_noslash ++;
+    }
+
+    /* Package name should start with a letter */
+    if (!isalpha(id_noslash[0])) {
+        corto_throw("package name '%s' does not begin with letter", id);
+        goto error;
+    }
+
+    /* Validate package name */
+    char *ptr, ch, *dirPtr = dir;
+    for (ptr = id_noslash; (ch = *ptr); ptr ++) {
+        if (!isalpha(ch) && !isdigit(ch) && ch != '/' && ch != '_') {
+            corto_throw("invalid character '%c' in package name '%s'",
+                ch, id);
             goto error;
         }
-    }
-    if (include[0] == '/') {
-        include += 1;
-    }
-
-    /* Extract left-most name from include variable & replace :: */
-    char *ptr = include;
-    char *name = include;
-    corto_int32 i, offset = 0;
-    for (i = 0; i < strlen(include); i++) {
-        if (*ptr == '/') {
-            name = ptr + 1;
-        } else if (*ptr == ':') {
-            offset ++;
-            ptr++;
-            *ptr = '/';
-            name = &ptr[-offset] + 1;
-        }
-        ptr[-offset] = *ptr;
-        ptr++;
-    }
-
-    if (name_out) *name_out = name;
-
-    if (parentName) {
-        parentName[0] = '\0';
-    }
-    if (parentName && (name != include)) {
-        strcpy(parentName, include);
-        if (parentName[name - include - 1] == '/') {
-            parentName[name - include - 1] = '\0';
+        if (ch == '/') {
+            *dirPtr = '-';
         } else {
-            parentName[name - include - 2] = '\0';
+            *dirPtr = ch;
+        }
+        dirPtr ++;
+    }
+    *dirPtr = '\0';
+
+    /* Get last element in package identifier */
+    if (name) {
+        *name = strrchr(id_noslash, '/');
+        if (!*name) {
+            *name = id_noslash;
+        } else {
+            (*name) ++;
         }
     }
 
-    return include;
+    return id_noslash;
 error:
     return NULL;
 }
@@ -334,6 +329,7 @@ error:
 static corto_int16 cortotool_app (
     const char *projectKind,
     char *projectName,
+    char *dir,
     corto_bool silent,
     corto_bool mute,
     corto_bool nobuild,
@@ -343,37 +339,42 @@ static corto_int16 cortotool_app (
     corto_bool nocoverage,
     corto_string language)
 {
-    corto_id buff, includeMem;
+    corto_id buff, dir_buffer;
     FILE *file;
-    char *name = NULL, *include;
+    char *name = NULL;
 
     silent |= mute;
 
-    if (!(include = cortotool_fmtName(includeMem, NULL, projectName, &name))) {
+    char *id = cortotool_canonicalName(projectName, &name, dir_buffer);
+    if (!id) {
         if (!mute) {
-            corto_error("%s", corto_lasterr());
+            corto_throw(NULL);
         }
         goto error;
     }
 
-    if (cortotool_setupProject(projectKind, name, local, silent)) {
+    if (!dir) {
+        dir = dir_buffer;
+    }
+
+    if (cortotool_setupProject(projectKind, dir, local, silent)) {
         goto error;
     }
 
-    if (cortotool_createProjectJson(projectKind, include, name, local, nocorto, nocoverage, language)) {
+    if (cortotool_createProjectJson(projectKind, id, dir, local, nocorto, nocoverage, language)) {
         goto error;
     }
 
-    sprintf(buff, "%s/src", name);
+    sprintf(buff, "%s/src", dir);
     if (corto_mkdir(buff)) {
-        corto_error("couldn't create %s directory (check permissions)", buff);
+        corto_throw("couldn't create %s directory (check permissions)", buff);
         goto error;
     }
 
     if (!strcmp(language, "c")) {
-        sprintf(buff, "%s/src/%s.c", name, name);
+        sprintf(buff, "%s/src/%s.c", dir, name);
     } else {
-        sprintf(buff, "%s/src/%s.cpp", name, name);
+        sprintf(buff, "%s/src/%s.cpp", dir, name);
     }
     file = fopen(buff, "w");
     if (file) {
@@ -388,24 +389,26 @@ static corto_int16 cortotool_app (
         fprintf(file, "}\n");
         fclose(file);
     } else {
-        corto_error("couldn't create '%s' (check permissions)", buff);
+        corto_throw("couldn't create '%s' (check permissions)", buff);
         goto error;
     }
 
-    if (corto_chdir(name)) {
-        corto_error("can't change working directory to '%s' (check permissions)", buff);
+    if (corto_chdir(dir)) {
+        corto_throw("can't change working directory to '%s' (check permissions)", buff);
         goto error;
     }
 
     if (!nobuild) {
-        if (corto_load("driver/tool/build", 2, (char*[]){"build", "--silent", NULL})) {
-            goto error;
+        int8_t ret;
+        int sig;
+        if ((sig = corto_proc_cmd("bake --error", &ret) || ret)) {
+            corto_throw("failed to build project");
         }
     }
 
     if (!notest) {
         if (cortotool_createTest(
-            name,
+            id,
             FALSE,
             local,
             language))
@@ -429,6 +432,7 @@ error:
 
 static corto_int16 cortotool_package(
     char *projectName,
+    char *dir,
     corto_bool silent,
     corto_bool mute,
     corto_bool nobuild,
@@ -439,50 +443,54 @@ static corto_int16 cortotool_package(
     corto_bool nocoverage,
     corto_string language)
 {
-    corto_id cxfile, srcfile, srcdir, parentName;
-    corto_id includeMem;
-    corto_char *name = NULL, *include = NULL;
+    corto_id cxfile, srcfile, srcdir, dir_buffer;
+    corto_char *name = NULL;
     FILE *file;
 
     silent |= mute;
 
-    if (!(include = cortotool_fmtName(includeMem, parentName, projectName, &name))) {
+    char *id = cortotool_canonicalName(projectName, &name, dir_buffer);
+    if (!id) {
         if (!mute) {
-            corto_error("%s", corto_lasterr());
+            corto_throw(NULL);
         }
         goto error;
     }
 
-    if (cortotool_setupProject(CORTO_PACKAGE, name, local, silent)) {
+    if (!dir) {
+        dir = dir_buffer;
+    }
+
+    if (cortotool_setupProject(CORTO_PACKAGE, dir, local, silent)) {
         goto error;
     }
 
-    if (cortotool_createProjectJson(CORTO_PACKAGE, include, name, local, nocorto, nocoverage, language)) {
+    if (cortotool_createProjectJson(CORTO_PACKAGE, id, dir, local, nocorto, nocoverage, language)) {
         goto error;
     }
 
     /* Write definition file */
     if (!nocorto) {
-        if (snprintf(cxfile, sizeof(cxfile), "%s/%s.cx", name, name) >=
+        if (snprintf(cxfile, sizeof(cxfile), "%s/model.cx", dir) >=
             (int)sizeof(cxfile))
         {
             if (!mute) {
-                corto_error("package name '%s' is too long", name);
+                corto_throw("package name '%s' is too long", id);
             }
             goto error;
         }
 
-        if (corto_fileTest(cxfile)) {
+        if (corto_file_test(cxfile)) {
             if (!mute) {
-                corto_error("package '%s' already exists", cxfile);
+                corto_throw("package '%s' already exists", cxfile);
             }
             goto error;
         }
     }
 
-    if (corto_mkdir(name)) {
+    if (corto_mkdir(dir)) {
         if (!mute) {
-            corto_error(
+            corto_throw(
                 "corto: failed to create directory '%s' (check permissions)",
                 name);
         }
@@ -492,10 +500,10 @@ static corto_int16 cortotool_package(
     if (!nodef && !nocorto) {
         file = fopen(cxfile, "w");
         if (file) {
-            fprintf(file, "in package /%s\n\n", include);
+            fprintf(file, "in package /%s\n\n", id);
             fclose(file);
         } else {
-            corto_error(
+            corto_throw(
                 "corto: failed to open file '%s' (check permissions)",
                 cxfile);
             goto error;
@@ -503,17 +511,17 @@ static corto_int16 cortotool_package(
     }
 
     /* Create src and include folders */
-    sprintf(srcdir, "%s/include", name);
+    sprintf(srcdir, "%s/include", dir);
     if (corto_mkdir(srcdir)) {
-        corto_error(
+        corto_throw(
           "corto: failed to create directory '%s' (check permissions)",
           srcdir);
         goto error;
     }
 
-    sprintf(srcdir, "%s/src", name);
+    sprintf(srcdir, "%s/src", dir);
     if (corto_mkdir(srcdir)) {
-        corto_error(
+        corto_throw(
           "corto: failed to create directory '%s' (check permissions)",
           srcdir);
         goto error;
@@ -523,27 +531,27 @@ static corto_int16 cortotool_package(
      * file upon creation of the package. The header is mandatory- at least one
      * header with the name of the package must exist. These files will be
      * untouched by code generation when rebuilding the package with nocorto */
-    if (nocorto) {
+    if (nocorto && nodef) {
         if (snprintf(srcfile,
             sizeof(srcfile),
             "%s/include/%s.h",
-            name, name) >= (int)sizeof(srcfile))
+            dir, name) >= (int)sizeof(srcfile))
         {
             if (!mute) {
-                corto_error("package name '%s' is too long", name);
+                corto_throw("package name '%s' is too long", name);
             }
             goto error;
         }
 
         /* Don't overwrite file if it already exists */
-        if (!corto_fileTest(srcfile)) {
+        if (!corto_file_test(srcfile)) {
             file = fopen(srcfile, "w");
             if (file) {
                 /* Create macro identifier the hard way */
                 corto_id macro;
                 char *ptr = macro, ch;
-                strcpy(macro, include);
-                corto_strupper(macro);
+                strcpy(macro, id);
+                strupper(macro);
                 while ((ch = *ptr)) {
                     if (ch == '/') {
                         *ptr = '_';
@@ -573,7 +581,7 @@ static corto_int16 cortotool_package(
                 fclose(file);
             } else {
                 if (!mute) {
-                    corto_error("failed to open file '%s'", srcfile);
+                    corto_throw("failed to open file '%s'", srcfile);
                 }
                 goto error;
             }
@@ -581,27 +589,24 @@ static corto_int16 cortotool_package(
     }
 
     if (!strcmp(language, "c")) {
-        snprintf(srcfile, sizeof(srcfile), "%s/src/%s.c", name, name);
+        snprintf(srcfile, sizeof(srcfile), "%s/src/%s.c", dir, name);
     } else {
-        snprintf(srcfile, sizeof(srcfile), "%s/src/%s.cpp", name, name);
+        snprintf(srcfile, sizeof(srcfile), "%s/src/%s.cpp", dir, name);
     }
+
+    /* Create main function for unmanaged packages */
     if (nocorto) {
         /* Don't overwrite file if it already exists */
-        if (!corto_fileTest(srcfile)) {
+        if (!corto_file_test(srcfile)) {
             file = fopen(srcfile, "w");
             if (file) {
                 fprintf(file, "\n");
                 if (local) {
                     fprintf(file, "#include <include/%s.h>\n", name);
                 } else {
-                    fprintf(file, "#include <%s/%s.h>\n", include, name);
+                    fprintf(file, "#include <%s/%s.h>\n", id, name);
                 }
                 fprintf(file, "\n");
-                fprintf(file, "/* Add implementation here */\n");
-                fprintf(file, "\n");
-                fprintf(file, "/* cortomain is called when the package is loaded by Corto. It is a good\n");
-                fprintf(file, " * place for initialization code that needs to be executed once.\n");
-                fprintf(file, " * The function can be safely removed if not needed. */\n");
                 fprintf(file, "int cortomain(int argc, char *argv[]) {\n\n");
                 fprintf(file, "    return 0;\n");
                 fprintf(file, "}\n");
@@ -609,47 +614,17 @@ static corto_int16 cortotool_package(
                 fclose(file);
             } else {
                 if (!mute) {
-                    corto_error("failed to open file '%s'", srcfile);
+                    corto_throw("failed to open file '%s'", srcfile);
                 }
                 goto error;
             }
-        }
-    } else if (nodef) {
-        /* Don't overwrite file if it already exists */
-        if (!corto_fileTest(srcfile)) {
-            file = fopen(srcfile, "w");
-            if (file) {
-                fprintf(file, "\n");
-                if (local) {
-                    fprintf(file, "#include <include/%s.h>\n", name);
-                } else {
-                    fprintf(file, "#include <%s/%s.h>\n", include, name);
-                }
-                fprintf(file, "\n");
-                fprintf(file, "/* Add implementation here */\n");
-                fprintf(file, "\n");
-                fprintf(file, "/* Enter package initialization code here */\n");
-                fprintf(file, "int %sMain(int argc, char *argv[]) {\n\n", name);
-                fprintf(file, "    return 0;\n");
-                fprintf(file, "}\n");
-                fprintf(file, "\n");
-                fclose(file);
-            } else {
-                if (!mute) {
-                    corto_error("failed to open file '%s'", srcfile);
-                }
-                goto error;
-            }
-        } else {
-            corto_error("file already exists, can't generate", srcfile);
-            goto error;
         }
     }
 
     /* Change working directory */
-    if (corto_chdir(name)) {
+    if (corto_chdir(dir)) {
         if (!mute) {
-            corto_error(
+            corto_throw(
               "corto: can't change directory to '%s' (check permissions)",
               name);
         }
@@ -657,13 +632,15 @@ static corto_int16 cortotool_package(
     }
 
     if (!nobuild) {
-        if (corto_load("driver/tool/build", 2, (char*[]){"build", "--silent", nocoverage ? "--nocoverage" : "", NULL})) {
-            goto error;
+        int8_t ret;
+        int sig;
+        if ((sig = corto_proc_cmd("bake --error", &ret) || ret)) {
+            corto_throw("failed to build project");
         }
     }
 
     if (!notest) {
-        if (cortotool_createTest(include, TRUE, local, language)) {
+        if (cortotool_createTest(id, TRUE, local, language)) {
             goto error;
         }
     }
@@ -684,12 +661,11 @@ error:
 int cortomain(int argc, char *argv[]) {
     corto_ll silent, mute, nobuild, notest, local;
     corto_ll apps, packages, nocorto, nodef, nocoverage;
-    corto_ll apps_noname, packages_noname, lang;
+    corto_ll apps_noname, packages_noname, lang, output;
     corto_string language = "c";
+    char *outputdir = NULL;
 
     CORTO_UNUSED(argc);
-
-    corto_errfmt(errfmt);
 
     corto_argdata *data = corto_argparse(
       argv,
@@ -704,6 +680,7 @@ int cortomain(int argc, char *argv[]) {
         {"--local", &local, NULL},
         {"--nocoverage", &nocoverage, NULL},
         {"--lang", NULL, &lang},
+        {"-o", NULL, &output},
         {CORTO_APPLICATION, NULL, &apps},
         {CORTO_PACKAGE, NULL, &packages},
         {CORTO_APPLICATION, &apps_noname, NULL},
@@ -714,7 +691,7 @@ int cortomain(int argc, char *argv[]) {
     );
 
     if (!data) {
-        corto_error("%s", corto_lasterr());
+        corto_throw(NULL);
         goto error;
     }
 
@@ -726,6 +703,10 @@ int cortomain(int argc, char *argv[]) {
         language = corto_ll_get(lang, 0);
     }
 
+    if (output) {
+        outputdir = corto_ll_get(output, 0);
+    }
+
     /* If no arguments are provided, create an application with a random name */
     if (!apps && !packages && !apps_noname && !packages_noname)
     {
@@ -733,6 +714,7 @@ int cortomain(int argc, char *argv[]) {
         if (cortotool_app(
             CORTO_APPLICATION,
             name,
+            outputdir,
             silent != NULL,
             mute != NULL,
             nobuild != NULL,
@@ -753,6 +735,7 @@ int cortomain(int argc, char *argv[]) {
             if (cortotool_app(
                 CORTO_APPLICATION,
                 name,
+                outputdir,
                 silent != NULL,
                 mute != NULL,
                 nobuild != NULL,
@@ -775,6 +758,7 @@ int cortomain(int argc, char *argv[]) {
             if (cortotool_app(
                 CORTO_APPLICATION,
                 name,
+                outputdir,
                 silent != NULL,
                 mute != NULL,
                 nobuild != NULL,
@@ -795,6 +779,7 @@ int cortomain(int argc, char *argv[]) {
             char *name = corto_iter_next(&iter);
             if (cortotool_package(
                 name,
+                outputdir,
                 silent != NULL,
                 mute != NULL,
                 nobuild != NULL,
@@ -817,6 +802,7 @@ int cortomain(int argc, char *argv[]) {
             corto_iter_next(&iter);
             if (cortotool_package(
                 name,
+                outputdir,
                 silent != NULL,
                 mute != NULL,
                 nobuild != NULL,

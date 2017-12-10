@@ -1,5 +1,0 @@
-PACKAGE = 'driver/tool/create'
-NOCORTO = true
-LANGUAGE = 'c'
-USE_PACKAGE = ['corto/argparse', 'driver/tool/rebuild', 'driver/tool/build', 'driver/tool/add']
-require "#{ENV['CORTO_BUILD']}/package"

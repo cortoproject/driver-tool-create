@@ -1,0 +1,10 @@
+{
+    "id": "driver/tool/create",
+    "type": "package",
+    "value": {
+        "author": "Sander Mertens",
+        "description": "Create new a new corto project",
+        "managed": false,
+        "use": ["corto", "corto/argparse"]
+    }
+}
