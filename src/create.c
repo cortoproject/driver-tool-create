@@ -441,7 +441,8 @@ static corto_int16 cortotool_package(
     corto_bool nocorto,
     corto_bool nodef,
     corto_bool nocoverage,
-    corto_string language)
+    corto_string language,
+    bool cpp)
 {
     corto_id cxfile, srcfile, srcdir, dir_buffer;
     corto_char *name = NULL;
@@ -607,6 +608,9 @@ static corto_int16 cortotool_package(
                     fprintf(file, "#include <%s/%s.h>\n", id, name);
                 }
                 fprintf(file, "\n");
+                if (cpp) {
+                    fprintf(file, "extern \"C\"\n");                    
+                }
                 fprintf(file, "int cortomain(int argc, char *argv[]) {\n\n");
                 fprintf(file, "    return 0;\n");
                 fprintf(file, "}\n");
@@ -661,7 +665,7 @@ error:
 int cortomain(int argc, char *argv[]) {
     corto_ll silent, mute, nobuild, notest, local;
     corto_ll apps, packages, nocorto, nodef, nocoverage;
-    corto_ll apps_noname, packages_noname, lang, output;
+    corto_ll apps_noname, packages_noname, lang, output, cpp;
     corto_string language = "c";
     char *outputdir = NULL;
 
@@ -680,6 +684,7 @@ int cortomain(int argc, char *argv[]) {
         {"--local", &local, NULL},
         {"--nocoverage", &nocoverage, NULL},
         {"--lang", NULL, &lang},
+        {"--use-cpp", &cpp, NULL},
         {"-o", NULL, &output},
         {CORTO_APPLICATION, NULL, &apps},
         {CORTO_PACKAGE, NULL, &packages},
@@ -788,7 +793,8 @@ int cortomain(int argc, char *argv[]) {
                 nocorto != NULL,
                 nodef != NULL,
                 nocoverage != NULL,
-                language))
+                language,
+                cpp != NULL))
             {
                 goto error;
             }
@@ -811,7 +817,8 @@ int cortomain(int argc, char *argv[]) {
                 nocorto != NULL,
                 nodef != NULL,
                 nocoverage != NULL,
-                language))
+                language,
+                cpp != NULL))
             {
                 goto error;
             }
