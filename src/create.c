@@ -381,10 +381,7 @@ static corto_int16 cortotool_app (
         if (!nocorto) {
             fprintf(file, "#include <include/%s.h>\n\n", name);
         }
-        fprintf(file, "int %s%s(int argc, char *argv[]) {\n\n", nocorto ? "" : name, nocorto ? "main" : "Main");
-        if (!nocorto) {
-            fprintf(file, "    printf(\"Hello Corto!\\n\");\n\n");
-        }
+        fprintf(file, "int %s(int argc, char *argv[]) {\n\n", nocorto ? "main" : "cortomain");
         fprintf(file, "    return 0;\n");
         fprintf(file, "}\n");
         fclose(file);
@@ -609,7 +606,7 @@ static corto_int16 cortotool_package(
                 }
                 fprintf(file, "\n");
                 if (cpp) {
-                    fprintf(file, "extern \"C\"\n");                    
+                    fprintf(file, "extern \"C\"\n");
                 }
                 fprintf(file, "int cortomain(int argc, char *argv[]) {\n\n");
                 fprintf(file, "    return 0;\n");
