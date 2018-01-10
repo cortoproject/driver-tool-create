@@ -288,6 +288,9 @@ static char* cortotool_canonicalName(
         id_noslash ++;
     }
 
+    /* Make a copy, so we can modify name */
+    id_noslash = corto_strdup(id_noslash);
+
     /* Package name should start with a letter */
     if (!isalpha(id_noslash[0])) {
         corto_throw("package name '%s' does not begin with letter", id);
@@ -297,10 +300,13 @@ static char* cortotool_canonicalName(
     /* Validate package name */
     char *ptr, ch, *dirPtr = dir;
     for (ptr = id_noslash; (ch = *ptr); ptr ++) {
-        if (!isalpha(ch) && !isdigit(ch) && ch != '/' && ch != '_') {
+        if (!isalpha(ch) && !isdigit(ch) && ch != '/' && ch != '_' && ch != '-') {
             corto_throw("invalid character '%c' in package name '%s'",
                 ch, id);
             goto error;
+        }
+        if (ch == '-') {
+            ch = *ptr = '/';
         }
         if (ch == '/') {
             *dirPtr = '-';
@@ -415,10 +421,10 @@ static corto_int16 cortotool_app (
     }
 
     if (!silent) {
-        printf("  Type = %s'application'%s\n", CORTO_CYAN, CORTO_NORMAL);
-        printf("  Name = %s'%s'%s\n", CORTO_CYAN, projectName, CORTO_NORMAL);
-        printf("  Language = %s'%s'%s\n", CORTO_CYAN , language, CORTO_NORMAL);
-        printf("  Managed = %s'%s'%s\n", CORTO_CYAN , nocorto ? "no" : "yes", CORTO_NORMAL);
+        printf("  id = %s'%s'%s\n", CORTO_CYAN, id, CORTO_NORMAL);
+        printf("  type = %s'application'%s\n", CORTO_CYAN, CORTO_NORMAL);
+        printf("  language = %s'%s'%s\n", CORTO_CYAN , language, CORTO_NORMAL);
+        printf("  managed = %s'%s'%s\n", CORTO_CYAN , nocorto ? "no" : "yes", CORTO_NORMAL);
         printf("Done! Run the app by running %s'./%s/%s'%s.\n\n", CORTO_CYAN, name, name, CORTO_NORMAL);
     }
 
@@ -529,7 +535,7 @@ static corto_int16 cortotool_package(
      * file upon creation of the package. The header is mandatory- at least one
      * header with the name of the package must exist. These files will be
      * untouched by code generation when rebuilding the package with nocorto */
-    if (nocorto && nodef) {
+    if (nocorto || nodef) {
         if (snprintf(srcfile,
             sizeof(srcfile),
             "%s/include/%s.h",
@@ -647,10 +653,10 @@ static corto_int16 cortotool_package(
     }
 
     if (!silent) {
-        printf("  Type = %s'package'%s\n", CORTO_CYAN, CORTO_NORMAL);
-        printf("  Name = %s'%s'%s\n", CORTO_CYAN, projectName, CORTO_NORMAL);
-        printf("  Language = %s'%s'%s\n", CORTO_CYAN , language, CORTO_NORMAL);
-        printf("  Managed = %s'%s'%s\n", CORTO_CYAN , nocorto ? "no" : "yes", CORTO_NORMAL);
+        printf("  id = %s'%s'%s\n", CORTO_CYAN, id, CORTO_NORMAL);
+        printf("  type = %s'package'%s\n", CORTO_CYAN, CORTO_NORMAL);
+        printf("  language = %s'%s'%s\n", CORTO_CYAN , language, CORTO_NORMAL);
+        printf("  managed = %s'%s'%s\n", CORTO_CYAN , nocorto ? "no" : "yes", CORTO_NORMAL);
         printf("Done\n\n");
     }
 
