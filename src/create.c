@@ -7,7 +7,7 @@
 
 #define CORTO_PROMPT CORTO_CYAN "corto: " CORTO_NORMAL
 
-int cortomain(int argc, char *argv[]);
+int cortotool_main(int argc, char *argv[]);
 
 static corto_int16 cortotool_setupProject(
     const char *projectKind,
@@ -115,7 +115,12 @@ error:
     return -1;
 }
 
-static corto_int16 cortotool_createTest(corto_string id, corto_bool isPackage, corto_bool isLocal, corto_string language) {
+static corto_int16 cortotool_createTest(
+    corto_string id,
+    corto_bool isPackage,
+    corto_bool isLocal,
+    corto_string language)
+{
     FILE *file;
 
     if (corto_mkdir("test")) {
@@ -127,7 +132,12 @@ static corto_int16 cortotool_createTest(corto_string id, corto_bool isPackage, c
         goto error;
     }
 
-    if (cortomain(
+    corto_string useCpp = "";
+    if (strcmp(language, "c4cpp") == 0) {
+        useCpp = "--use-cpp";
+    }
+
+    if (cortotool_main(
         8,
         (char*[]){
             "create",
@@ -138,8 +148,9 @@ static corto_int16 cortotool_createTest(corto_string id, corto_bool isPackage, c
             "--silent",
             "--nobuild",
             "--nocoverage",
-            "--lang",
-            language,
+            useCpp,
+            "-o",
+            "test",
             NULL}
     )) {
         corto_throw("couldn't create test skeleton (check permissions)");
@@ -666,14 +677,23 @@ error:
 }
 
 int cortomain(int argc, char *argv[]) {
+    if (cortotool_main(argc, argv)) {
+        goto error;
+    }
+
+    return 0;
+error:
+    return -1;
+}
+
+int cortotool_main(int argc, char *argv[]) {
     corto_ll silent, mute, nobuild, notest, local;
     corto_ll apps, packages, nocorto, nodef, nocoverage;
-    corto_ll apps_noname, packages_noname, lang, output, cpp;
+    corto_ll apps_noname, packages_noname, output, cpp;
     corto_string language = "c";
     char *outputdir = NULL;
 
     CORTO_UNUSED(argc);
-
     corto_argdata *data = corto_argparse(
       argv,
       (corto_argdata[]){
@@ -686,7 +706,6 @@ int cortomain(int argc, char *argv[]) {
         {"--nodef", &nodef, NULL},
         {"--local", &local, NULL},
         {"--nocoverage", &nocoverage, NULL},
-        {"--lang", NULL, &lang},
         {"--use-cpp", &cpp, NULL},
         {"-o", NULL, &output},
         {CORTO_APPLICATION, NULL, &apps},
@@ -707,8 +726,8 @@ int cortomain(int argc, char *argv[]) {
         notest = nocorto;
     }
 
-    if (lang) {
-        language = corto_ll_get(lang, 0);
+    if (cpp) {
+        language = "c4cpp";
     }
 
     if (output) {
