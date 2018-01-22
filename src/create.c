@@ -70,7 +70,8 @@ static corto_int16 cortotool_createProjectJson(
     corto_bool isLocal,
     corto_bool nocorto,
     corto_bool nocoverage,
-    corto_string language)
+    corto_string language,
+    bool cpp)
 {
     FILE *file;
     corto_id buff;
@@ -95,6 +96,9 @@ static corto_int16 cortotool_createProjectJson(
     fprintf(file, ",\n        \"author\": \"Arthur Dent\"");
     fprintf(file, ",\n        \"version\": \"1.0.0\"");
     fprintf(file, ",\n        \"language\": \"%s\"", language);
+    if (cpp) {
+        fprintf(file, ",\n        \"c4cpp\": \"true\"");
+    }
 
     if (isLocal) {
         fprintf(file, ",\n        \"public\": false");
@@ -119,7 +123,8 @@ static corto_int16 cortotool_createTest(
     corto_string id,
     corto_bool isPackage,
     corto_bool isLocal,
-    corto_string language)
+    corto_string language,
+    bool cpp)
 {
     FILE *file;
 
@@ -133,7 +138,7 @@ static corto_int16 cortotool_createTest(
     }
 
     corto_string useCpp = "";
-    if (strcmp(language, "c4cpp") == 0) {
+    if (cpp) {
         useCpp = "--use-cpp";
     }
 
@@ -158,7 +163,7 @@ static corto_int16 cortotool_createTest(
     }
 
     corto_id filename;
-    if (!strcmp(language, "c")) {
+    if (!cpp) {
         sprintf(filename, "src/test.c");
     } else {
         sprintf(filename, "src/test.cpp");
@@ -354,7 +359,8 @@ static corto_int16 cortotool_app (
     corto_bool local,
     corto_bool nocorto,
     corto_bool nocoverage,
-    corto_string language)
+    corto_string language,
+    bool cpp)
 {
     corto_id buff, dir_buffer;
     FILE *file;
@@ -378,7 +384,15 @@ static corto_int16 cortotool_app (
         goto error;
     }
 
-    if (cortotool_createProjectJson(projectKind, id, dir, local, nocorto, nocoverage, language)) {
+    if (cortotool_createProjectJson(
+        projectKind,
+        id,
+        dir,
+        local,
+        nocorto,
+        nocoverage,
+        language,
+        cpp)) {
         goto error;
     }
 
@@ -388,7 +402,7 @@ static corto_int16 cortotool_app (
         goto error;
     }
 
-    if (!strcmp(language, "c")) {
+    if (!cpp) {
         sprintf(buff, "%s/src/%s.c", dir, name);
     } else {
         sprintf(buff, "%s/src/%s.cpp", dir, name);
@@ -425,7 +439,8 @@ static corto_int16 cortotool_app (
             id,
             FALSE,
             local,
-            language))
+            language,
+            cpp))
         {
             goto error;
         }
@@ -435,6 +450,7 @@ static corto_int16 cortotool_app (
         printf("  id = %s'%s'%s\n", CORTO_CYAN, id, CORTO_NORMAL);
         printf("  type = %s'application'%s\n", CORTO_CYAN, CORTO_NORMAL);
         printf("  language = %s'%s'%s\n", CORTO_CYAN , language, CORTO_NORMAL);
+        printf("  c4cpp = %s'%s'%s\n", CORTO_CYAN , cpp ? "yes" : "no", CORTO_NORMAL);
         printf("  managed = %s'%s'%s\n", CORTO_CYAN , nocorto ? "no" : "yes", CORTO_NORMAL);
         printf("Done! Run the app by running %s'./%s/%s'%s.\n\n", CORTO_CYAN, name, name, CORTO_NORMAL);
     }
@@ -480,7 +496,15 @@ static corto_int16 cortotool_package(
         goto error;
     }
 
-    if (cortotool_createProjectJson(CORTO_PACKAGE, id, dir, local, nocorto, nocoverage, language)) {
+    if (cortotool_createProjectJson(
+        CORTO_PACKAGE,
+        id,
+        dir,
+        local,
+        nocorto,
+        nocoverage,
+        language,
+        cpp)) {
         goto error;
     }
 
@@ -603,7 +627,7 @@ static corto_int16 cortotool_package(
         }
     }
 
-    if (!strcmp(language, "c")) {
+    if (!cpp) {
         snprintf(srcfile, sizeof(srcfile), "%s/src/%s.c", dir, name);
     } else {
         snprintf(srcfile, sizeof(srcfile), "%s/src/%s.cpp", dir, name);
@@ -658,7 +682,7 @@ static corto_int16 cortotool_package(
     }
 
     if (!notest) {
-        if (cortotool_createTest(id, TRUE, local, language)) {
+        if (cortotool_createTest(id, TRUE, local, language, cpp)) {
             goto error;
         }
     }
@@ -667,6 +691,7 @@ static corto_int16 cortotool_package(
         printf("  id = %s'%s'%s\n", CORTO_CYAN, id, CORTO_NORMAL);
         printf("  type = %s'package'%s\n", CORTO_CYAN, CORTO_NORMAL);
         printf("  language = %s'%s'%s\n", CORTO_CYAN , language, CORTO_NORMAL);
+        printf("  c4cpp = %s'%s'%s\n", CORTO_CYAN , cpp ? "yes" : "no", CORTO_NORMAL);
         printf("  managed = %s'%s'%s\n", CORTO_CYAN , nocorto ? "no" : "yes", CORTO_NORMAL);
         printf("Done\n\n");
     }
@@ -726,10 +751,6 @@ int cortotool_main(int argc, char *argv[]) {
         notest = nocorto;
     }
 
-    if (cpp) {
-        language = "c4cpp";
-    }
-
     if (output) {
         outputdir = corto_ll_get(output, 0);
     }
@@ -749,7 +770,8 @@ int cortotool_main(int argc, char *argv[]) {
             local != NULL,
             nocorto != NULL,
             nocoverage != NULL,
-            language))
+            language,
+            cpp != NULL))
         {
             goto error;
         }
@@ -770,7 +792,8 @@ int cortotool_main(int argc, char *argv[]) {
                 local != NULL,
                 nocorto != NULL,
                 nocoverage != NULL,
-                language))
+                language,
+                cpp != NULL))
             {
                 goto error;
             }
@@ -793,7 +816,8 @@ int cortotool_main(int argc, char *argv[]) {
                 local != NULL,
                 nocorto != NULL,
                 nocoverage != NULL,
-                language))
+                language,
+                cpp != NULL))
             {
                 goto error;
             }
