@@ -174,7 +174,7 @@ static corto_int16 cortotool_createTest(
         fprintf(file, "\n");
         fprintf(file, "int cortomain(int argc, char *argv[]) {\n");
         fprintf(file, "    int result = 0;\n");
-        fprintf(file, "    test_Runner runner = test_RunnerCreate(\"%s\", argv[0], (argc > 1) ? argv[1] : NULL);\n", id);
+        fprintf(file, "    test_Runner runner = test_Runner__create(NULL, NULL, \"%s\", argv[0], (argc > 1) ? argv[1] : NULL);\n", id);
         fprintf(file, "    if (!runner) return -1;\n");
         fprintf(file, "    if (corto_ll_count(runner->failures)) {\n");
         fprintf(file, "        result = -1;\n");
