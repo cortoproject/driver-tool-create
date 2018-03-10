@@ -20,24 +20,14 @@ static corto_int16 cortotool_setupProject(
 
     if (corto_file_test(dir)) {
         corto_id id;
-        sprintf(id, "%s/.corto", dir);
+        sprintf(id, "%s/project.json", dir);
         if (corto_file_test(id)) {
             corto_throw(
                 "corto: a project in location '%s' already exists!",
                 dir);
             goto error;
         }
-    } else if (!corto_mkdir(dir)) {
-        corto_id id;
-        sprintf(id, "%s/.corto", dir);
-        if (corto_mkdir(id)) {
-            corto_throw(
-                "corto: couldn't create '%s/.corto (check permissions)'",
-                dir);
-            goto error;
-        }
-
-    } else {
+    } else if (corto_mkdir(dir)) {
         corto_throw(
             "corto: couldn't create project directory '%s' (check permissions)",
             dir);
