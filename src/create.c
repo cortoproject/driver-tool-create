@@ -306,12 +306,15 @@ static char* cortotool_canonicalName(
     /* Validate package name */
     char *ptr, ch, *dirPtr = dir;
     for (ptr = id_noslash; (ch = *ptr); ptr ++) {
-        if (!isalpha(ch) && !isdigit(ch) && ch != '/' && ch != '_' && ch != '-') {
+        if (!isalpha(ch) && !isdigit(ch) && ch != '/' && ch != '_' && ch != '-' && ch != '.') {
             corto_throw("invalid character '%c' in package name '%s'",
                 ch, id);
             goto error;
         }
         if (ch == '-') {
+            ch = *ptr = '/';
+        }
+        if (ch == '.') {
             ch = *ptr = '/';
         }
         if (ch == '/') {
