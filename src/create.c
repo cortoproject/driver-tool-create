@@ -9,11 +9,134 @@
 
 int cortotool_main(int argc, char *argv[]);
 
+static char* cortotool_randomName(void) {
+    char buffer[256];
+
+    char *colors[] = {
+        "Cayenne",
+        "Maroon",
+        "Orchid",
+        "Magenta",
+        "Tangerine",
+        "Salmon",
+        "Lemon",
+        "Clover",
+        "Lime",
+        "Teal",
+        "Turquoise"};
+
+    char *animals[] = {
+        "Buffalo",
+        "Eagle",
+        "Lynx",
+        "Porcupine",
+        "Lizard",
+        "Alpaca",
+        "Lemming",
+        "Armadillo",
+        "Mongoose",
+        "Gecko",
+        "Beaver",
+        "Owl",
+        "Cat",
+        "Emu",
+        "Vulture",
+        "Kangaroo",
+        "Badger",
+        "Hawk",
+        "Baboon",
+        "Otter",
+        "Ibis",
+        "Goose",
+        "Lemur",
+        "Hog",
+        "Herring",
+        "Sloth",
+        "Peacock",
+        "Koala",
+        "Moose",
+        "Tapir"
+        };
+
+    strcpy(buffer, colors[rand() % (sizeof(colors) / sizeof(char*))]);
+    strcat(buffer, animals[rand() % (sizeof(animals) / sizeof(char*))]);
+
+    return strdup(buffer);
+}
+
+static char* cortotool_randomDescription(void) {
+    char buffer[256];
+
+    char *function[] = {
+        "Car rentals",
+        "Ride sharing",
+        "Room sharing",
+        "Vegan meal delivery",
+        "Instant noodles",
+        "Premium coffee beans",
+        "Air conditioners",
+        "Sunscreen",
+        "Furniture",
+        "A microwave",
+        "Conditioner",
+        "Grocery stores",
+        "Photo sharing",
+        "A social network",
+        "Coding tutorials",
+        "Bodybuilding",
+        "Laser hair removal",
+        "A movie theater subscription",
+        "Plant delivery",
+        "Shaving supplies",
+        "On demand country music",
+        "A dating site",
+        "Wine tasting",
+        "Solar energy",
+        "A towel",
+        "A middle out compression algorithm",
+        "Putting birds on ",
+        "Winter is coming",
+        "Space travel",
+        "Lightsabers",
+        "Hi-speed internet",
+        "A web framework",
+        "A fitness tracker"};
+
+    char *subject[] = {
+        "drones",
+        "self driving cars",
+        "air travel",
+        "kids",
+        "millenials",
+        "coders",
+        "project managers",
+        "entrepreneurs",
+        "designers",
+        "web developers",
+        "venture capitalists",
+        "sales reps",
+        "married couples",
+        "wookies",
+        "dogs",
+        "cats"};
+
+    strcpy(buffer, function[rand() % (sizeof(function) / sizeof(char*))]);
+    if (buffer[strlen(buffer) - 1] != ' ') {
+        strcat(buffer, " for ");
+    }
+    strcat(buffer, subject[rand() % (sizeof(subject) / sizeof(char*))]);
+
+    return strdup(buffer);
+}
+
 static corto_int16 cortotool_setupProject(
     const char *projectKind,
     const char *dir,
+    const char *id,
+    const char *name,
     corto_bool isLocal,
-    corto_bool isSilent)
+    corto_bool isSilent,
+    corto_bool managed)
 {
     CORTO_UNUSED(isLocal);
     CORTO_UNUSED(projectKind);
@@ -32,6 +155,34 @@ static corto_int16 cortotool_setupProject(
             "corto: couldn't create project directory '%s' (check permissions)",
             dir);
         goto error;
+    }
+
+    if (managed) {
+        corto_id model_file;
+        sprintf(model_file, "%s/model.corto", dir);
+        FILE *file = fopen(model_file, "w");
+        if (file) {
+            fprintf(file, "in %s\n\n", id);
+            fprintf(file, "/* Create models for your project in this file\n\n");
+            fprintf(file, "class ExampleType {\n");
+            fprintf(file, "    // Members\n");
+            fprintf(file, "    x: int32\n");
+            fprintf(file, "    y: int32\n\n");
+            fprintf(file, "    // Constructor and destructor\n");
+            fprintf(file, "    construct() int16\n");
+            fprintf(file, "    destruct()\n\n");
+            fprintf(file, "    // Methods\n");
+            fprintf(file, "    add(int32 x, int32 y)\n");
+            fprintf(file, "    dot() int32\n");
+            fprintf(file, "}\n\n");
+            fprintf(file, "*/\n\n");
+            fclose(file);
+        } else {
+            corto_throw(
+                "corto: failed to open file '%s' (check permissions)",
+                model_file);
+            goto error;
+        }
     }
 
     if (!isSilent) {
@@ -82,8 +233,10 @@ static corto_int16 cortotool_createProjectJson(
         id,
         !strcmp(projectKind, CORTO_PACKAGE) ? "package" : "application");
 
-    fprintf(file,  "\n        \"description\": \"Making the world a better place\"");
-    fprintf(file, ",\n        \"author\": \"Arthur Dent\"");
+    char *description = cortotool_randomDescription();
+
+    fprintf(file,  "\n        \"description\": \"%s\"", description);
+    fprintf(file, ",\n        \"author\": \"John Doe\"");
     fprintf(file, ",\n        \"version\": \"1.0.0\"");
     fprintf(file, ",\n        \"language\": \"%s\"", language);
     if (cpp) {
@@ -103,6 +256,8 @@ static corto_int16 cortotool_createProjectJson(
 
     fprintf(file, "\n    }\n}\n");
     fclose(file);
+
+    free(description);
 
     return 0;
 error:
@@ -178,14 +333,16 @@ static corto_int16 cortotool_createTest(
         goto error;
     }
 
-    file = fopen("model.cx", "w");
+    file = fopen("model.corto", "w");
     if (file) {
-        fprintf(file, "in package test\n\n");
+        fprintf(file, "in test\n\n");
+        fprintf(file, "/*\n");
         fprintf(file, "test/Suite MySuite:/\n");
         fprintf(file, "    void testSomething()\n\n");
+        fprintf(file, "*/\n");
         fclose(file);
     } else {
-        corto_throw("couldn't create 'test/model.cx' (check permissions)");
+        corto_throw("couldn't create 'test/model.corto' (check permissions)");
         goto error;
     }
 
@@ -225,61 +382,6 @@ static corto_int16 cortotool_createTest(
     return 0;
 error:
     return -1;
-}
-
-static char* cortotool_randomName(void) {
-    char buffer[256];
-
-    char *colors[] = {
-        "Cayenne",
-        "Maroon",
-        "Orchid",
-        "Magenta",
-        "Tangerine",
-        "Salmon",
-        "Lemon",
-        "Clover",
-        "Lime",
-        "Teal",
-        "Turquoise"};
-
-    char *animals[] = {
-        "Buffalo",
-        "Eagle",
-        "Lynx",
-        "Porcupine",
-        "Lizard",
-        "Alpaca",
-        "Lemming",
-        "Armadillo",
-        "Mongoose",
-        "Gecko",
-        "Beaver",
-        "Owl",
-        "Cat",
-        "Emu",
-        "Vulture",
-        "Kangaroo",
-        "Badger",
-        "Hawk",
-        "Baboon",
-        "Otter",
-        "Ibis",
-        "Goose",
-        "Lemur",
-        "Hog",
-        "Herring",
-        "Sloth",
-        "Peacock",
-        "Koala",
-        "Moose",
-        "Tapir"
-        };
-
-    strcpy(buffer, colors[rand() % (sizeof(colors) / sizeof(char*))]);
-    strcat(buffer, animals[rand() % (sizeof(animals) / sizeof(char*))]);
-
-    return strdup(buffer);
 }
 
 static char* cortotool_canonicalName(
@@ -330,6 +432,9 @@ static char* cortotool_canonicalName(
     if (name) {
         *name = strrchr(id_noslash, '/');
         if (!*name) {
+            *name = strrchr(id_noslash, '.');
+        }
+        if (!*name) {
             *name = id_noslash;
         } else {
             (*name) ++;
@@ -373,7 +478,7 @@ static corto_int16 cortotool_app (
         dir = dir_buffer;
     }
 
-    if (cortotool_setupProject(projectKind, dir, local, silent)) {
+    if (cortotool_setupProject(projectKind, dir, id, name, local, silent, !nocorto)) {
         goto error;
     }
 
@@ -462,12 +567,11 @@ static corto_int16 cortotool_package(
     corto_bool notest,
     corto_bool local,
     corto_bool nocorto,
-    corto_bool nodef,
     corto_bool nocoverage,
     corto_string language,
     bool cpp)
 {
-    corto_id cxfile, srcfile, srcdir, dir_buffer;
+    corto_id srcfile, srcdir, dir_buffer;
     corto_char *name = NULL;
     FILE *file;
 
@@ -485,7 +589,7 @@ static corto_int16 cortotool_package(
         dir = dir_buffer;
     }
 
-    if (cortotool_setupProject(CORTO_PACKAGE, dir, local, silent)) {
+    if (cortotool_setupProject(CORTO_PACKAGE, dir, id, name, local, silent, !nocorto)) {
         goto error;
     }
 
@@ -499,47 +603,6 @@ static corto_int16 cortotool_package(
         language,
         cpp)) {
         goto error;
-    }
-
-    /* Write definition file */
-    if (!nocorto) {
-        if (snprintf(cxfile, sizeof(cxfile), "%s/model.cx", dir) >=
-            (int)sizeof(cxfile))
-        {
-            if (!mute) {
-                corto_throw("package name '%s' is too long", id);
-            }
-            goto error;
-        }
-
-        if (corto_file_test(cxfile)) {
-            if (!mute) {
-                corto_throw("package '%s' already exists", cxfile);
-            }
-            goto error;
-        }
-    }
-
-    if (corto_mkdir(dir)) {
-        if (!mute) {
-            corto_throw(
-                "corto: failed to create directory '%s' (check permissions)",
-                name);
-        }
-        goto error;
-    }
-
-    if (!nodef && !nocorto) {
-        file = fopen(cxfile, "w");
-        if (file) {
-            fprintf(file, "in package /%s\n\n", id);
-            fclose(file);
-        } else {
-            corto_throw(
-                "corto: failed to open file '%s' (check permissions)",
-                cxfile);
-            goto error;
-        }
     }
 
     /* Create src and include folders */
@@ -563,7 +626,7 @@ static corto_int16 cortotool_package(
      * file upon creation of the package. The header is mandatory- at least one
      * header with the name of the package must exist. These files will be
      * untouched by code generation when rebuilding the package with nocorto */
-    if (nocorto || nodef) {
+    if (nocorto) {
         if (snprintf(srcfile,
             sizeof(srcfile),
             "%s/include/%s.h",
@@ -706,7 +769,7 @@ error:
 
 int cortotool_main(int argc, char *argv[]) {
     corto_ll silent, mute, nobuild, notest, local;
-    corto_ll apps, packages, nocorto, nodef, nocoverage;
+    corto_ll apps, packages, nocorto, nocoverage;
     corto_ll apps_noname, packages_noname, output, cpp;
     corto_string language = "c";
     char *outputdir = NULL;
@@ -721,7 +784,6 @@ int cortotool_main(int argc, char *argv[]) {
         {"--nobuild", &nobuild, NULL},
         {"--notest", &notest, NULL},
         {"--unmanaged", &nocorto, NULL},
-        {"--nodef", &nodef, NULL},
         {"--local", &local, NULL},
         {"--nocoverage", &nocoverage, NULL},
         {"--use-cpp", &cpp, NULL},
@@ -830,7 +892,6 @@ int cortotool_main(int argc, char *argv[]) {
                 notest != NULL,
                 local != NULL,
                 nocorto != NULL,
-                nodef != NULL,
                 nocoverage != NULL,
                 language,
                 cpp != NULL))
@@ -854,7 +915,6 @@ int cortotool_main(int argc, char *argv[]) {
                 notest != NULL,
                 local != NULL,
                 nocorto != NULL,
-                nodef != NULL,
                 nocoverage != NULL,
                 language,
                 cpp != NULL))
@@ -891,7 +951,6 @@ void cortotool_createHelp(void) {
     printf("   --local        Create a project that won't be installed to the package repository\n");
     printf("   --unmanaged    Create an unmanaged project that doens't use corto code generation\n");
     printf("   --notest       Do not create a test skeleton\n");
-    printf("   --nodef        Do not generate a definition file\n");
     printf("   --nobuild      Do not build the project after creating it\n");
     printf("   --nocoverage   Disable coverage analysis for project\n");
     printf("   --silent       Suppress output from stdout\n");
