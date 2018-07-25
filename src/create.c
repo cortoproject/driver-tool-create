@@ -309,9 +309,9 @@ static corto_int16 cortotool_createTest(
 
     corto_id filename;
     if (!cpp) {
-        sprintf(filename, "src/test.c");
+        sprintf(filename, "src/main.c");
     } else {
-        sprintf(filename, "src/test.cpp");
+        sprintf(filename, "src/main.cpp");
     }
     file = fopen(filename, "w");
     if (file) {
@@ -501,9 +501,9 @@ static corto_int16 cortotool_app (
     }
 
     if (!cpp) {
-        sprintf(buff, "%s/src/%s.c", dir, name);
+        sprintf(buff, "%s/src/main.c", dir);
     } else {
-        sprintf(buff, "%s/src/%s.cpp", dir, name);
+        sprintf(buff, "%s/src/main.cpp", dir);
     }
     file = fopen(buff, "w");
     if (file) {
@@ -684,9 +684,9 @@ static corto_int16 cortotool_package(
     }
 
     if (!cpp) {
-        snprintf(srcfile, sizeof(srcfile), "%s/src/%s.c", dir, name);
+        snprintf(srcfile, sizeof(srcfile), "%s/src/main.c", dir);
     } else {
-        snprintf(srcfile, sizeof(srcfile), "%s/src/%s.cpp", dir, name);
+        snprintf(srcfile, sizeof(srcfile), "%s/src/main.cpp", dir);
     }
 
     /* Create main function for unmanaged packages */
