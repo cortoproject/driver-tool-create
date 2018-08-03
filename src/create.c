@@ -370,7 +370,7 @@ static corto_int16 cortotool_createTest(
      * do a rebuild of the test project */
      int8_t ret;
      int sig;
-     if ((sig = corto_proc_cmd("bake rebuild --error", &ret) || ret)) {
+     if ((sig = corto_proc_cmd("bake rebuild --verbosity error", &ret) || ret)) {
          corto_throw("failed to rebuild test");
      }
 
@@ -527,7 +527,7 @@ static corto_int16 cortotool_app (
     if (!nobuild) {
         int8_t ret;
         int sig;
-        if ((sig = corto_proc_cmd("bake --error", &ret) || ret)) {
+        if ((sig = corto_proc_cmd("bake --verbosity error", &ret) || ret)) {
             corto_throw("failed to build project");
         }
     }
@@ -732,7 +732,7 @@ static corto_int16 cortotool_package(
     if (!nobuild) {
         int8_t ret;
         int sig;
-        if ((sig = corto_proc_cmd("bake --error", &ret) || ret)) {
+        if ((sig = corto_proc_cmd("bake --verbosity error", &ret) || ret)) {
             corto_throw("failed to build project");
         }
     }
