@@ -238,6 +238,8 @@ static corto_int16 cortotool_createProjectJson(
     fprintf(file,  "\n        \"description\": \"%s\"", description);
     fprintf(file, ",\n        \"author\": \"John Doe\"");
     fprintf(file, ",\n        \"version\": \"1.0.0\"");
+    fprintf(file, ",\n        \"repository\": null");
+    fprintf(file, ",\n        \"license\": null");
     fprintf(file, ",\n        \"language\": \"%s\"", language);
     if (cpp) {
         fprintf(file, ",\n        \"c4cpp\": \"true\"");
@@ -529,6 +531,7 @@ static corto_int16 cortotool_app (
         int sig;
         if ((sig = corto_proc_cmd("bake --verbosity error", &ret) || ret)) {
             corto_throw("failed to build project");
+            goto error;
         }
     }
 
